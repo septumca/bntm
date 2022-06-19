@@ -18,8 +18,8 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-  let elements = 2048;
-  let treshold = 512;
+  let elements = 1024*16;
+  let treshold = 128;
   let mut movables: HashMap<usize, Actor> = HashMap::new();
   let mut cdsystem = CDSystem::new();
   let split = if screen_width() > screen_height() { BTreeSplit::Vertical } else { BTreeSplit::Horizontal };
@@ -45,19 +45,23 @@ async fn main() {
       continue;
     }
 
-    let mut bt = BTree::new(Rect::new(0., 0., screen_width(), screen_height()), treshold, split.clone());
     {
+      let mut bt = BTree::new(Rect::new(0., 0., screen_width(), screen_height()), treshold, split.clone());
+
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("bt");
 
       {
         let _z = telemetry::ZoneGuard::new("BTree - insert");
         for (k, (m, _)) in &movables {
-          bt.insert((*k, m.bounds()));
+          bt.insert((*k, m));
         }
       }
 
       cdsystem.update(bt.get_collisions());
+
+      #[cfg(debug_assertions)]
+      bt.draw(1.);
     }
 
     {
@@ -108,10 +112,7 @@ async fn main() {
     }
 
     #[cfg(debug_assertions)]
-    {
-      macroquad_profiler::profiler(Default::default());
-      bt.draw(1.);
-    }
+    macroquad_profiler::profiler(Default::default());
 
     draw_text(format!("{}", get_fps()).as_str(), 5., 20., 32., WHITE);
     draw_text(format!("{:?}", mouse_position()).as_str(), 5., screen_height() - 20., 32., WHITE);

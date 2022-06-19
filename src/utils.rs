@@ -4,14 +4,13 @@ use std::collections::{HashSet};
 use macroquad::prelude::*;
 use macroquad::telemetry;
 
-type BTElem = (usize, Rect);
+type BTElem<'a> = (usize, &'a Movable);
 pub type Actor = (Movable, Color);
 type CDData = (usize, usize);
 
 const EPSILON: f32 = 0.004;
 
 
-#[derive(Clone, Copy)]
 pub struct Movable {
   pub pos: Vec2,
   pub vel: Vec2,
@@ -66,8 +65,8 @@ impl Movable {
     self.imp += imp;
   }
 
-  pub fn bounds(&self) -> Rect {
-    self.bounds
+  pub fn bounds(&self) -> &Rect {
+    &self.bounds
   }
 
   pub fn next_vel_imp(&self, delta_t: f32) -> (Vec2, Vec2) {
@@ -87,7 +86,7 @@ pub fn generate_random(count: usize) -> HashMap<usize, Actor> {
   let mut movables: HashMap<usize, Actor>  = HashMap::new();
 
   for k in 0..count {
-    let m = Movable::new().with_size((6., 6.));
+    let m = Movable::new().with_size((4., 4.));
     let x = rand::gen_range::<f32>(0. + m.bounds.w / 2., screen_width() - m.bounds.h / 2.);
     let y = rand::gen_range::<f32>(0. + m.bounds.w / 2., screen_height() - m.bounds.h / 2.);
 
@@ -100,8 +99,9 @@ pub fn generate_random(count: usize) -> HashMap<usize, Actor> {
       rand::gen_range::<f32>(0., 1.),
       1.
     );
+    let speed =  m.speed;
 
-    let m = m.with_pos(vec2(x, y)).with_vel(vec2(vx, vy).normalize() * m.speed);
+    let m = m.with_pos(vec2(x, y)).with_vel(vec2(vx, vy).normalize() * speed);
 
     movables.insert(k, (m, c));
   }
@@ -159,15 +159,15 @@ pub enum BTreeSplit {
   Vertical,
 }
 
-pub struct BTree {
+pub struct BTree<'a> {
   bounds: Rect,
   split: BTreeSplit,
-  elems: Vec<BTElem>,
-  children: Option<(Box<BTree>, Box<BTree>)>,
+  elems: Vec<BTElem<'a>>,
+  children: Option<(Box<BTree<'a>>, Box<BTree<'a>>)>,
   treshold: usize,
 }
 
-impl BTree {
+impl<'a> BTree<'a> {
   pub fn new(bounds: Rect, treshold: usize, split: BTreeSplit) -> Self {
     BTree { bounds, split, treshold, elems: vec![], children: None }
   }
@@ -187,8 +187,8 @@ impl BTree {
     }
   }
 
-  pub fn insert(&mut self, value: BTElem) {
-    if !self.bounds.overlaps(&value.1) {
+  pub fn insert(&mut self, value: BTElem<'a>) {
+    if !self.bounds.overlaps(&value.1.bounds()) {
       return;
     }
 
@@ -230,7 +230,7 @@ impl BTree {
         let mut collisions = HashSet::new();
         for index_a in 0..self.elems.len() {
           for index_b in (index_a+1)..self.elems.len() {
-            if self.elems[index_a].1.overlaps(&self.elems[index_b].1) {
+            if self.elems[index_a].1.bounds().overlaps(&self.elems[index_b].1.bounds()) {
               collisions.insert((self.elems[index_a].0, self.elems[index_b].0));
             }
           }
