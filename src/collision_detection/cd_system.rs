@@ -53,30 +53,60 @@ impl CDSystem {
 }
 
 
-
-
 #[cfg(test)]
 mod tests {
   use super::*;
+  const DT: f32 = 0.0165;
+
+  mod cd_system {
+    use super::*;
+
+    fn create() -> CDSystem {
+      CDSystem::new()
+    }
+
+    #[test]
+    fn update() {
+      let mut cd = create();
+      let collisions: HashSet<CDData> = HashSet::from([(0, 1), (1, 2)]);
+      let collisions2: HashSet<CDData> = HashSet::from([(3, 4)]);
+
+      cd.update(collisions.clone());
+      assert_eq!(cd.act_step, collisions);
+
+      cd.update(collisions2.clone());
+      assert_eq!(cd.last_step, collisions);
+      assert_eq!(cd.act_step, collisions2);
+    }
+
+    #[test]
+    fn just_collided() {
+      let mut cd = create();
+      let collisions: HashSet<CDData> = HashSet::from([(0, 1), (1, 2)]);
+      let collisions2: HashSet<CDData> = HashSet::from([(3, 4), (0, 1)]);
+
+      cd.update(collisions.clone());
+      cd.update(collisions2.clone());
+      assert_eq!(cd.get_just_collided(), HashSet::from([(3, 4)]));
+    }
+  }
 
   #[test]
   fn collision_y() {
-    let dt: f32 = 0.0165;
     let ma = Movable::new().with_size((16., 16.)).with_pos(vec2(630.0, 446.0633)).with_vel(vec2(0.0, -50.0));
     let mb = Movable::new().with_size((16., 16.)).with_pos(vec2(636.0, 430.0));
 
-    let ca = get_collision_axis(&ma, &mb, dt);
+    let ca = get_collision_axis(&ma, &mb, DT);
 
     assert_eq!(ca, CollisionAxis::Y);
   }
 
   #[test]
   fn collision_corner() {
-    let dt: f32 = 0.0165;
     let ma = Movable::new().with_size((16., 16.)).with_pos(vec2(619.72003, 413.71997)).with_vel(vec2(50.0, 50.0));
     let mb = Movable::new().with_size((16., 16.)).with_pos(vec2(636.0, 430.0));
 
-    let ca = get_collision_axis(&ma, &mb, dt);
+    let ca = get_collision_axis(&ma, &mb, DT);
 
     assert_eq!(ca, CollisionAxis::Both);
   }

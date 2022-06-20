@@ -6,6 +6,7 @@ use crate::components::movable::Movable;
 
 use super::cd_system::CDData;
 
+const MAX_DEPTH: usize = 16;
 
 type BTElem<'a> = (usize, &'a Movable);
 
@@ -16,6 +17,7 @@ pub enum BTreeSplit {
 }
 
 pub struct BTree<'a> {
+  depth: usize,
   bounds: Rect,
   split: BTreeSplit,
   elems: Vec<BTElem<'a>>,
@@ -24,8 +26,8 @@ pub struct BTree<'a> {
 }
 
 impl<'a> BTree<'a> {
-  pub fn new(bounds: Rect, treshold: usize, split: BTreeSplit) -> Self {
-    BTree { bounds, split, treshold, elems: vec![], children: None }
+  pub fn new(depth: usize, bounds: Rect, treshold: usize, split: BTreeSplit) -> Self {
+    BTree { depth, bounds, split, treshold, elems: vec![], children: None }
   }
 
   pub fn split(&self) -> (Rect, Rect, BTreeSplit) {
@@ -54,10 +56,10 @@ impl<'a> BTree<'a> {
         ch.1.insert(value);
       },
       &mut None => {
-        if self.elems.len() + 1 > self.treshold {
+        if self.elems.len() + 1 > self.treshold && self.depth < MAX_DEPTH {
           let (ra, rb, split) = self.split();
-          let mut bta = BTree::new(ra, self.treshold, split.clone());
-          let mut btb = BTree::new(rb, self.treshold, split.clone());
+          let mut bta = BTree::new(self.depth + 1, ra, self.treshold, split.clone());
+          let mut btb = BTree::new(self.depth + 1, rb, self.treshold, split.clone());
 
           for elem in self.elems.clone() {
             bta.insert(elem);
@@ -94,6 +96,7 @@ impl<'a> BTree<'a> {
     }
   }
 
+  #[cfg(debug_assertions)]
   pub fn draw(&self, thickness: f32) {
     draw_rectangle_lines(self.bounds.x, self.bounds.y, self.bounds.w, self.bounds.h, thickness, YELLOW);
     match &self.children {
@@ -104,6 +107,113 @@ impl<'a> BTree<'a> {
       None => {
         draw_text(format!("{}", self.elems.len()).as_str(), self.bounds.x + 2. , self.bounds.y + 10., 16., WHITE);
       }
+    }
+  }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  const W: f32 = 64.;
+  const H: f32 = 32.;
+  const SIZE: f32 = 8.;
+
+  fn create<'a>() -> BTree<'a> {
+    BTree::new(0, Rect::new(0., 0., W, H), 2, BTreeSplit::Vertical)
+  }
+
+  fn create_movable(pos: Vec2) -> Movable {
+    Movable::new().with_pos(pos).with_size((SIZE, SIZE))
+  }
+
+  #[test]
+  fn insert() {
+    let mut bt = create();
+    let m = &create_movable(vec2(4., 4.));
+    bt.insert((1, m));
+
+    assert_eq!(bt.elems.len(), 1);
+    assert_eq!(bt.elems[0].0, 1);
+    assert!(bt.children.is_none());
+  }
+
+  mod insert_over_treshold {
+    use super::*;
+
+    #[test]
+    fn simple() {
+      let mut bt = create();
+      let m = &create_movable(vec2(4., 4.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(16., 4.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(40., 4.));
+      bt.insert((1, m));
+
+      assert_eq!(bt.elems.len(), 0);
+      assert!(bt.children.is_some());
+      let children = bt.children.unwrap();
+
+      assert_eq!(children.0.bounds.x, 0.);
+      assert_eq!(children.0.bounds.y, 0.);
+      assert_eq!(children.0.bounds.w, 32.);
+      assert_eq!(children.0.bounds.h, 32.);
+
+      assert_eq!(children.1.bounds.x, 32.);
+      assert_eq!(children.1.bounds.y, 0.);
+      assert_eq!(children.1.bounds.w, 32.);
+      assert_eq!(children.1.bounds.h, 32.);
+
+      assert_eq!(children.0.elems.len(), 2);
+      assert_eq!(children.1.elems.len(), 1);
+    }
+
+    #[test]
+    fn one_in_two_trees() {
+      let mut bt = create();
+      let m = &create_movable(vec2(4., 4.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(56., 4.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(32., 24.));
+      bt.insert((1, m));
+
+      assert_eq!(bt.elems.len(), 0);
+      assert!(bt.children.is_some());
+      let children = bt.children.unwrap();
+
+      assert_eq!(children.0.elems.len(), 2);
+      assert_eq!(children.1.elems.len(), 2);
+    }
+
+    #[test]
+    fn max_depth() {
+      let mut bt = create();
+      let m = &create_movable(vec2(0., 0.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(0., 0.));
+      bt.insert((1, m));
+
+      let m = &create_movable(vec2(0., 0.));
+      bt.insert((1, m));
+
+      assert_eq!(bt.elems.len(), 0);
+      assert!(bt.children.is_some());
+
+      for _ in 0..MAX_DEPTH {
+        let children = bt.children.unwrap();
+        bt = *children.0;
+      }
+
+      assert!(bt.children.is_none());
+      assert_eq!(bt.elems.len(), 3);
     }
   }
 }

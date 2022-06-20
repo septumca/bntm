@@ -50,7 +50,7 @@ async fn main() {
     }
 
     {
-      let mut bt = BTree::new(Rect::new(0., 0., screen_width(), screen_height()), treshold, split.clone());
+      let mut bt = BTree::new(0, Rect::new(0., 0., screen_width(), screen_height()), treshold, split.clone());
 
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("bt");
