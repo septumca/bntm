@@ -3,8 +3,12 @@ use std::{collections::HashMap};
 use macroquad::telemetry;
 
 mod utils;
+mod collision_detection;
+mod components;
 
 use utils::*;
+use collision_detection::{cd_system::{CDSystem, get_collision_axis, CollisionAxis}, btree::{BTreeSplit, BTree}};
+
 
 fn window_conf() -> Conf {
   Conf {
@@ -38,7 +42,7 @@ async fn main() {
       movables = generate_two_inside();
     }
 
-    clear_background(DARKGRAY);
+    clear_background(BLACK);
 
     if movables.len() == 0 {
       next_frame().await;
