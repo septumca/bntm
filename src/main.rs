@@ -31,7 +31,7 @@ fn window_conf() -> Conf {
 async fn main() {
   let elements = 1024*8;
   let treshold = 128;
-  let mut actors: HashMap<usize, Actor> = generate_player_and_enemies(1);
+  let mut actors: HashMap<usize, Actor> = generate_player_and_enemies(5);
   let mut cdsystem = CDSystem::new();
 
 

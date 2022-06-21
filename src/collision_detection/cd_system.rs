@@ -28,10 +28,7 @@ pub fn get_collision_axis(
     mb.pos + vec2(mb.next_vel_imp(delta_t).0.x, 0.),
     (mb.bounds().w, mb.bounds().h)
   );
-
-  if ra.overlaps(&rb) {
-   return CollisionAxis::X;
-  }
+  let x_overlaps = ra.overlaps(&rb);
 
   let ra = rect_from_pos(
     ma.pos + vec2(0., ma.next_vel_imp(delta_t).0.y),
@@ -41,8 +38,17 @@ pub fn get_collision_axis(
     mb.pos + vec2(0., mb.next_vel_imp(delta_t).0.y),
     (mb.bounds().w, mb.bounds().h)
   );
+  let y_overlaps = ra.overlaps(&rb);
 
-  if ra.overlaps(&rb) {
+  if x_overlaps && y_overlaps {
+    return CollisionAxis::Both;
+  }
+
+  if x_overlaps {
+    return CollisionAxis::X;
+   }
+
+  if y_overlaps {
     return CollisionAxis::Y;
   }
 
