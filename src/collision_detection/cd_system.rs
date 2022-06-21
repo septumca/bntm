@@ -4,6 +4,8 @@ use macroquad::{prelude::*};
 
 use crate::{utils::rect_from_pos, components::movable::Movable};
 
+pub const BOUNCE_VALUE: f32 = 100.;
+
 pub type CDData = (usize, usize);
 
 #[derive(PartialEq, Eq, Debug)]
@@ -14,22 +16,37 @@ pub enum CollisionAxis {
 }
 
 
-pub fn get_collision_axis(ma: &Movable, mb: &Movable, delta_t: f32) -> CollisionAxis {
-  let ra = rect_from_pos(ma.pos + vec2(ma.next_vel_imp(delta_t).0.x, 0.), (ma.bounds().w, ma.bounds().h));
-  let rb = rect_from_pos(mb.pos + vec2(mb.next_vel_imp(delta_t).0.x, 0.), (mb.bounds().w, mb.bounds().h));
+pub fn get_collision_axis(
+  ma: &Movable,
+  mb: &Movable, delta_t: f32
+) -> CollisionAxis {
+  let ra = rect_from_pos(
+    ma.pos + vec2(ma.next_vel_imp(delta_t).0.x, 0.),
+    (ma.bounds().w, ma.bounds().h)
+  );
+  let rb = rect_from_pos(
+    mb.pos + vec2(mb.next_vel_imp(delta_t).0.x, 0.),
+    (mb.bounds().w, mb.bounds().h)
+  );
 
   if ra.overlaps(&rb) {
    return CollisionAxis::X;
   }
 
-  let ra = rect_from_pos(ma.pos + vec2(0., ma.next_vel_imp(delta_t).0.y), (ma.bounds().w, ma.bounds().h));
-  let rb = rect_from_pos(mb.pos + vec2(0., mb.next_vel_imp(delta_t).0.y), (mb.bounds().w, mb.bounds().h));
+  let ra = rect_from_pos(
+    ma.pos + vec2(0., ma.next_vel_imp(delta_t).0.y),
+    (ma.bounds().w, ma.bounds().h)
+  );
+  let rb = rect_from_pos(
+    mb.pos + vec2(0., mb.next_vel_imp(delta_t).0.y),
+    (mb.bounds().w, mb.bounds().h)
+  );
 
   if ra.overlaps(&rb) {
     return CollisionAxis::Y;
   }
 
-  return CollisionAxis::Both;
+  CollisionAxis::Both
 }
 
 pub struct CDSystem {
@@ -93,8 +110,13 @@ mod tests {
 
   #[test]
   fn collision_y() {
-    let ma = Movable::new().with_size((16., 16.)).with_pos(vec2(630.0, 446.0633)).with_vel(vec2(0.0, -50.0));
-    let mb = Movable::new().with_size((16., 16.)).with_pos(vec2(636.0, 430.0));
+    let ma = Movable::new()
+      .with_size((16., 16.))
+      .with_pos(vec2(630.0, 446.0633))
+      .with_vel(vec2(0.0, -50.0));
+    let mb = Movable::new()
+      .with_size((16., 16.))
+      .with_pos(vec2(636.0, 430.0));
 
     let ca = get_collision_axis(&ma, &mb, DT);
 
@@ -103,8 +125,13 @@ mod tests {
 
   #[test]
   fn collision_corner() {
-    let ma = Movable::new().with_size((16., 16.)).with_pos(vec2(619.72003, 413.71997)).with_vel(vec2(50.0, 50.0));
-    let mb = Movable::new().with_size((16., 16.)).with_pos(vec2(636.0, 430.0));
+    let ma = Movable::new()
+      .with_size((16., 16.))
+      .with_pos(vec2(619.72003, 413.71997))
+      .with_vel(vec2(50.0, 50.0));
+    let mb = Movable::new()
+      .with_size((16., 16.))
+      .with_pos(vec2(636.0, 430.0));
 
     let ca = get_collision_axis(&ma, &mb, DT);
 

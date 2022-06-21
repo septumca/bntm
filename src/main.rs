@@ -1,3 +1,5 @@
+use crate::components::actor::Actor;
+use components::{actor::resolve_collision, action::Action};
 use macroquad::{prelude::*};
 use std::{collections::HashMap};
 use macroquad::telemetry;
@@ -5,9 +7,14 @@ use macroquad::telemetry;
 mod utils;
 mod collision_detection;
 mod components;
+// mod timer;
+// mod animation;
 
 use utils::*;
-use collision_detection::{cd_system::{CDSystem, get_collision_axis, CollisionAxis}, btree::{BTreeSplit, BTree}};
+use collision_detection::{
+  cd_system::{CDSystem},
+  btree::{BTree}
+};
 
 
 fn window_conf() -> Conf {
@@ -22,43 +29,46 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-  let elements = 1024*16;
+  let elements = 1024*8;
   let treshold = 128;
-  let mut movables: HashMap<usize, Actor> = HashMap::new();
+  let mut actors: HashMap<usize, Actor> = generate_player_and_enemies(1);
   let mut cdsystem = CDSystem::new();
-  let split = if screen_width() > screen_height() { BTreeSplit::Vertical } else { BTreeSplit::Horizontal };
+
 
   loop {
     let delta_t = get_frame_time();
     if is_key_released(KeyCode::A) {
-      movables = generate_random(elements);
+      actors = generate_random(elements);
     }
 
     if is_key_released(KeyCode::S) {
-      movables = generate_two_opposite();
+      actors = generate_two_opposite();
     }
 
     if is_key_released(KeyCode::D) {
-      movables = generate_two_inside();
+      actors = generate_two_inside();
     }
 
     clear_background(BLACK);
 
-    if movables.len() == 0 {
+    if actors.is_empty() {
       next_frame().await;
       continue;
     }
 
     {
-      let mut bt = BTree::new(0, Rect::new(0., 0., screen_width(), screen_height()), treshold, split.clone());
+      let mut bt = BTree::root(
+        Rect::new(0., 0., screen_width(), screen_height()),
+        treshold
+      );
 
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("bt");
 
       {
         let _z = telemetry::ZoneGuard::new("BTree - insert");
-        for (k, (m, _)) in &movables {
-          bt.insert((*k, m));
+        for (k, a) in &actors {
+          bt.insert((*k, a.movable.bounds()));
         }
       }
 
@@ -73,24 +83,13 @@ async fn main() {
       let _z = telemetry::ZoneGuard::new("collision detection and resoultion");
 
       for (ka, kb) in cdsystem.get_just_collided() {
-        let (ma, _c) = movables.get(&ka).unwrap();
-        let (mb, _c) = movables.get(&kb).unwrap();
+        let mut aa = actors.get_mut(&ka).unwrap().clone();
+        let mut ab = actors.get_mut(&kb).unwrap().clone();
 
-        let ca = get_collision_axis(&ma, &mb, delta_t);
+        resolve_collision(&mut aa, &mut ab, delta_t);
 
-        let (vela, velb) = match ca {
-          CollisionAxis::X => {
-            (vec2(-ma.vel.x, ma.vel.y), vec2(-mb.vel.x, mb.vel.y))
-          },
-          CollisionAxis::Y => {
-            (vec2(ma.vel.x, -ma.vel.y), vec2(mb.vel.x, -mb.vel.y))
-          },
-          CollisionAxis::Both => {
-            (vec2(-ma.vel.x, -ma.vel.y), vec2(-mb.vel.x, -mb.vel.y))
-          },
-        };
-        movables.get_mut(&ka).unwrap().0.set_vel(vela);
-        movables.get_mut(&kb).unwrap().0.set_vel(velb);
+        actors.insert(ka, aa);
+        actors.insert(kb, ab);
       }
     }
 
@@ -98,8 +97,15 @@ async fn main() {
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("update");
 
-      for (m, _) in movables.values_mut() {
-        m.update(delta_t);
+      let mut actions: Vec<(usize, Action)> = vec![];
+
+      for (k, a) in actors.iter_mut() {
+        if let Some(action) = a.perform() {
+          actions.push((*k, action));
+        }
+
+        a.update(delta_t);
+        let m = &mut a.movable;
 
         if m.bounds().right() > screen_width() || m.bounds().left() < 0. {
           m.vel.x = -m.vel.x;
@@ -108,18 +114,29 @@ async fn main() {
           m.vel.y = -m.vel.y;
         }
       }
+
+      for (src, a) in actions {
+        let src_actor = actors.get_mut(&src).unwrap();
+        a.apply(src_actor);
+      }
     }
 
-    for (m, c) in movables.values() {
-      let r = m.bounds();
-      draw_rectangle(r.x, r.y, r.w, r.h, *c);
+    for a in actors.values() {
+      let r = a.movable.bounds();
+      draw_rectangle(r.x, r.y, r.w, r.h, a.color);
     }
 
     #[cfg(debug_assertions)]
     macroquad_profiler::profiler(Default::default());
 
     draw_text(format!("{}", get_fps()).as_str(), 5., 20., 32., WHITE);
-    draw_text(format!("{:?}", mouse_position()).as_str(), 5., screen_height() - 20., 32., WHITE);
+    draw_text(
+      format!("{:?}", mouse_position()).as_str(),
+      5.,
+      screen_height() - 20.,
+      32.,
+      WHITE
+    );
 
     next_frame().await
   }

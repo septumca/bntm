@@ -2,14 +2,14 @@ use macroquad::{prelude::*};
 
 use crate::utils::EPSILON;
 
-
+#[derive(Debug, Clone, Copy)]
 pub struct Movable {
   pub pos: Vec2,
   pub vel: Vec2,
   pub imp: Vec2,
   pub speed: f32,
   friction: f32,
-  weight: f32,
+  pub weight: f32,
   bounds: Rect,
 }
 
@@ -21,21 +21,29 @@ impl Movable {
       pos,
       vel: Vec2::ZERO,
       imp: Vec2::ZERO,
-      friction: 0.5,
+      friction: 0.9,
       speed: 50.,
-      weight: 100.,
+      weight: 80.,
       bounds: Rect::new(pos.x, pos.y, size.0, size.1)
     }
   }
 
   fn update_bounds(&mut self) {
-    self.bounds.move_to(self.pos - vec2(self.bounds.w / 2., self.bounds.h / 2.));
+    self.bounds.move_to(
+      self.pos - vec2(self.bounds.w / 2., self.bounds.h / 2.)
+    );
   }
 
   pub fn with_size(mut self, size: (f32, f32)) -> Self {
     self.bounds.w = size.0;
     self.bounds.h = size.1;
     self.update_bounds();
+    self
+  }
+
+  pub fn with_speed(mut self, speed: f32) -> Self {
+    self.speed = speed;
+    self.vel = self.vel.normalize() * self.speed;
     self
   }
 
@@ -46,12 +54,12 @@ impl Movable {
   }
 
   pub fn with_vel(mut self, vel: Vec2) -> Self {
-    self.vel = vel;
+    self.set_vel(vel);
     self
   }
 
   pub fn set_vel(&mut self, vel: Vec2) {
-    self.vel = vel;
+    self.vel = vel.normalize_or_zero() * self.speed;
   }
 
   pub fn add_impuls(&mut self, imp: Vec2) {
@@ -64,7 +72,11 @@ impl Movable {
 
   pub fn next_vel_imp(&self, delta_t: f32) -> (Vec2, Vec2) {
     let new_imp = self.imp * self.friction;
-    let impuls = if new_imp.length_squared() > EPSILON { new_imp } else { Vec2::ZERO };
+    let impuls = if new_imp.length_squared() > EPSILON {
+      new_imp
+    } else {
+      Vec2::ZERO
+    };
     ((self.vel + self.imp) * delta_t, impuls)
   }
 
@@ -99,6 +111,24 @@ mod tests {
     let (vel, imp) = m.next_vel_imp(DT);
     assert_eq!(vel, (orig_vel + orig_imp) * DT);
     assert_eq!(imp, orig_imp * m.friction);
+  }
+
+  #[test]
+  fn with_speed() {
+    let (_pos, _vel, mut m) = create();
+    m = m.with_speed(100.);
+
+    assert_eq!(m.vel.length(), 100.);
+  }
+
+  #[test]
+  fn with_vel() {
+    let (_pos, _vel, mut m) = create();
+    m = m.with_speed(100.);
+    m = m.with_vel(vec2(0., 12.));
+
+    assert_eq!(m.vel.x, 0.);
+    assert_eq!(m.vel.y, 100.);
   }
 
   #[test]
