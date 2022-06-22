@@ -1,3 +1,5 @@
+use std::cell::{Cell, RefCell};
+
 use crate::{
   components::movable::Movable,
    collision_detection::cd_system::{
@@ -27,9 +29,9 @@ pub enum ActorState {
 }
 
 
-#[derive(Clone)]
+// #[derive(Clone)]
 pub struct Actor {
-  pub movable: Movable,
+  pub movable: RefCell<Movable>,
   pub kind: ActorKind,
   pub color: Color,
   pub ai: Option<Ai>,
@@ -41,7 +43,7 @@ impl Actor {
   pub fn new(movable: Movable, color: Color, kind: ActorKind) -> Self {
     Self {
       state: ActorState::Idle,
-      movable,
+      movable: RefCell::new(movable),
       color,
       kind,
       ai: None
@@ -71,20 +73,20 @@ impl Actor {
     self.state = state;
     match self.state {
       ActorState::MovingTo(tp) => {
-        self.movable.set_vel(tp - self.movable.pos);
+        self.movable.borrow_mut().set_vel_to_target(tp);
       },
       ActorState::Idle => {
-        self.movable.set_vel(Vec2::ZERO);
+        self.movable.borrow_mut().set_vel(Vec2::ZERO);
       },
     };
   }
 
   pub fn update(&mut self, delta_t: f32) {
-    self.movable.update(delta_t);
+    self.movable.borrow_mut().update(delta_t);
 
     match self.state {
       ActorState::MovingTo(tp) => {
-        if (self.movable.pos - tp).length_squared() < MOVE_PROXIMITY_EPSILON {
+        if self.movable.borrow().distance_to_squared(tp) < MOVE_PROXIMITY_EPSILON {
           self.set_state(ActorState::Idle);
         }
       },
@@ -94,11 +96,11 @@ impl Actor {
 }
 
 
-fn bounce_resolution(aa: &mut Actor, ab: &mut Actor, delta_t: f32) {
-  let ma = &aa.movable;
-  let mb = &ab.movable;
+fn bounce_resolution(aa: &Actor, ab: &Actor, delta_t: f32) {
+  let mut ma = aa.movable.borrow_mut();
+  let mut mb = ab.movable.borrow_mut();
 
-  let (impa, impb) = match get_collision_axis(ma, mb, delta_t) {
+  let (impa, impb) = match get_collision_axis(&ma, &mb, delta_t) {
     CollisionAxis::X => {
       (vec2(mb.vel.x, ma.vel.y), vec2(ma.vel.x, mb.vel.y))
     },
@@ -113,14 +115,14 @@ fn bounce_resolution(aa: &mut Actor, ab: &mut Actor, delta_t: f32) {
   let impa = impa / ma.weight * BOUNCE_VALUE;
   let impb = impb / mb.weight * BOUNCE_VALUE;
 
-  aa.movable.set_vel(Vec2::ZERO);
-  aa.movable.add_impuls(impa);
+  ma.set_vel(Vec2::ZERO);
+  ma.add_impuls(impa);
 
-  ab.movable.set_vel(Vec2::ZERO);
-  ab.movable.add_impuls(impb);
+  mb.set_vel(Vec2::ZERO);
+  mb.add_impuls(impb);
 }
 
-pub fn resolve_collision(aa: &mut Actor, ab: &mut Actor, delta_t: f32) {
+pub fn resolve_collision(aa: &Actor, ab: &Actor, delta_t: f32) {
   match (&aa.kind, &ab.kind) {
     (ActorKind::Enemy | ActorKind::Player, ActorKind::Projectile) => {
       //apply projectile

@@ -68,7 +68,7 @@ async fn main() {
       {
         let _z = telemetry::ZoneGuard::new("BTree - insert");
         for (k, a) in &actors {
-          bt.insert((*k, a.movable.bounds()));
+          bt.insert((*k,  a.movable.borrow().bounds()));
         }
       }
 
@@ -83,13 +83,10 @@ async fn main() {
       let _z = telemetry::ZoneGuard::new("collision detection and resoultion");
 
       for (ka, kb) in cdsystem.get_just_collided() {
-        let mut aa = actors.get_mut(&ka).unwrap().clone();
-        let mut ab = actors.get_mut(&kb).unwrap().clone();
+        let aa = actors.get(&ka).unwrap();
+        let ab = actors.get(&kb).unwrap();
 
-        resolve_collision(&mut aa, &mut ab, delta_t);
-
-        actors.insert(ka, aa);
-        actors.insert(kb, ab);
+        resolve_collision(aa, ab, delta_t);
       }
     }
 
@@ -105,7 +102,7 @@ async fn main() {
         }
 
         a.update(delta_t);
-        let m = &mut a.movable;
+        let mut m = a.movable.borrow_mut();
 
         if m.bounds().right() > screen_width() || m.bounds().left() < 0. {
           m.vel.x = -m.vel.x;
@@ -122,7 +119,8 @@ async fn main() {
     }
 
     for a in actors.values() {
-      let r = a.movable.bounds();
+      let m = a.movable.borrow();
+      let r = m.bounds();
       draw_rectangle(r.x, r.y, r.w, r.h, a.color);
     }
 

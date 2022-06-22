@@ -2,15 +2,15 @@ use macroquad::{prelude::*};
 
 use crate::utils::EPSILON;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Movable {
   pub pos: Vec2,
   pub vel: Vec2,
   pub imp: Vec2,
   pub speed: f32,
-  friction: f32,
+  pub friction: f32,
   pub weight: f32,
-  bounds: Rect,
+  pub bounds: Rect,
 }
 
 impl Movable {
@@ -58,6 +58,14 @@ impl Movable {
     self
   }
 
+  pub fn distance_to_squared(&self, target: Vec2) -> f32 {
+    (self.pos - target).length_squared()
+  }
+
+  pub fn set_vel_to_target(&mut self, target: Vec2) {
+    self.set_vel(target - self.pos);
+  }
+
   pub fn set_vel(&mut self, vel: Vec2) {
     self.vel = vel.normalize_or_zero() * self.speed;
   }
@@ -66,8 +74,8 @@ impl Movable {
     self.imp += imp;
   }
 
-  pub fn bounds(&self) -> &Rect {
-    &self.bounds
+  pub fn bounds(&self) -> Rect {
+    self.bounds
   }
 
   pub fn next_vel_imp(&self, delta_t: f32) -> (Vec2, Vec2) {

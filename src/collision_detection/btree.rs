@@ -6,7 +6,7 @@ use super::cd_system::CDData;
 
 const MAX_DEPTH: usize = 16;
 
-type BTElem<'a> = (usize, &'a Rect);
+type BTElem = (usize, Rect);
 
 #[derive(Clone)]
 pub enum BTreeSplit {
@@ -14,16 +14,16 @@ pub enum BTreeSplit {
   Vertical,
 }
 
-pub struct BTree<'a> {
+pub struct BTree {
   depth: usize,
   bounds: Rect,
   split: BTreeSplit,
-  elems: Vec<BTElem<'a>>,
-  children: Option<(Box<BTree<'a>>, Box<BTree<'a>>)>,
+  elems: Vec<BTElem>,
+  children: Option<(Box<BTree>, Box<BTree>)>,
   treshold: usize,
 }
 
-impl<'a> BTree<'a> {
+impl BTree {
   pub fn root(bounds: Rect, treshold: usize) -> Self {
     let split = if bounds.w > bounds.h {
       BTreeSplit::Vertical
@@ -77,8 +77,8 @@ impl<'a> BTree<'a> {
     }
   }
 
-  pub fn insert(&mut self, value: BTElem<'a>) {
-    if !self.bounds.overlaps(value.1) {
+  pub fn insert(&mut self, value: BTElem) {
+    if !self.bounds.overlaps(&value.1) {
       return;
     }
 
@@ -128,7 +128,7 @@ impl<'a> BTree<'a> {
         let mut collisions = HashSet::new();
         for index_a in 0..self.elems.len() {
           for index_b in (index_a+1)..self.elems.len() {
-            if self.elems[index_a].1.overlaps(self.elems[index_b].1) {
+            if self.elems[index_a].1.overlaps(&self.elems[index_b].1) {
               collisions.insert((self.elems[index_a].0, self.elems[index_b].0));
             }
           }
@@ -176,7 +176,7 @@ mod tests {
   const H: f32 = 32.;
   const SIZE: f32 = 8.;
 
-  fn create<'a>() -> BTree<'a> {
+  fn create() -> BTree {
     BTree::new(
       0,
       Rect::new(0., 0., W, H),
@@ -186,13 +186,13 @@ mod tests {
   }
 
   fn create_rect(pos: Vec2) -> Rect {
-    *Movable::new().with_pos(pos).with_size((SIZE, SIZE)).bounds()
+    Movable::new().with_pos(pos).with_size((SIZE, SIZE)).bounds()
   }
 
   #[test]
   fn insert() {
     let mut bt = create();
-    let r = &create_rect(vec2(4., 4.));
+    let r = create_rect(vec2(4., 4.));
     bt.insert((1, r));
 
     assert_eq!(bt.elems.len(), 1);
@@ -206,13 +206,13 @@ mod tests {
     #[test]
     fn simple() {
       let mut bt = create();
-      let r = &create_rect(vec2(4., 4.));
+      let r = create_rect(vec2(4., 4.));
       bt.insert((1, r));
 
-      let r = &create_rect(vec2(16., 4.));
+      let r = create_rect(vec2(16., 4.));
       bt.insert((1, r));
 
-      let r = &create_rect(vec2(40., 4.));
+      let r = create_rect(vec2(40., 4.));
       bt.insert((1, r));
 
       assert_eq!(bt.elems.len(), 0);
@@ -236,13 +236,13 @@ mod tests {
     #[test]
     fn one_in_two_trees() {
       let mut bt = create();
-      let r = &create_rect(vec2(4., 4.));
+      let r = create_rect(vec2(4., 4.));
       bt.insert((1, r));
 
-      let r = &create_rect(vec2(56., 4.));
+      let r = create_rect(vec2(56., 4.));
       bt.insert((2, r));
 
-      let r = &create_rect(vec2(32., 24.));
+      let r = create_rect(vec2(32., 24.));
       bt.insert((3, r));
 
       assert_eq!(bt.elems.len(), 0);
@@ -256,13 +256,13 @@ mod tests {
     #[test]
     fn max_depth() {
       let mut bt = create();
-      let r = &create_rect(vec2(0., 0.));
+      let r = create_rect(vec2(0., 0.));
       bt.insert((1, r));
 
-      let r = &create_rect(vec2(0., 0.));
+      let r = create_rect(vec2(0., 0.));
       bt.insert((2, r));
 
-      let r = &create_rect(vec2(0., 0.));
+      let r = create_rect(vec2(0., 0.));
       bt.insert((3, r));
 
       assert_eq!(bt.elems.len(), 0);
