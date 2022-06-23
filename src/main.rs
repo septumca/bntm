@@ -1,6 +1,7 @@
+use core::cell::RefCell;
 use crate::components::actor::Actor;
-use components::{actor::resolve_collision, action::Action};
-use macroquad::{prelude::*};
+use components::actor::{resolve_collision};
+use macroquad::prelude::*;
 use std::{collections::HashMap};
 use macroquad::telemetry;
 
@@ -10,11 +11,10 @@ mod components;
 // mod timer;
 // mod animation;
 
+use crate::components::movable::Movable;
+
 use utils::*;
-use collision_detection::{
-  cd_system::{CDSystem},
-  btree::{BTree}
-};
+use collision_detection::cd_system::{CDSystem, get_collisions};
 
 
 fn window_conf() -> Conf {
@@ -29,26 +29,12 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-  let elements = 1024*8;
-  let treshold = 128;
-  let mut actors: HashMap<usize, Actor> = generate_player_and_enemies(5);
+  let actors: HashMap<usize, RefCell<Actor>> = generate_player_and_enemies(5);
   let mut cdsystem = CDSystem::new();
 
 
   loop {
     let delta_t = get_frame_time();
-    if is_key_released(KeyCode::A) {
-      actors = generate_random(elements);
-    }
-
-    if is_key_released(KeyCode::S) {
-      actors = generate_two_opposite();
-    }
-
-    if is_key_released(KeyCode::D) {
-      actors = generate_two_inside();
-    }
-
     clear_background(BLACK);
 
     if actors.is_empty() {
@@ -57,25 +43,8 @@ async fn main() {
     }
 
     {
-      let mut bt = BTree::root(
-        Rect::new(0., 0., screen_width(), screen_height()),
-        treshold
-      );
-
-      #[cfg(debug_assertions)]
-      let _z = telemetry::ZoneGuard::new("bt");
-
-      {
-        let _z = telemetry::ZoneGuard::new("BTree - insert");
-        for (k, a) in &actors {
-          bt.insert((*k,  a.movable.borrow().bounds()));
-        }
-      }
-
-      cdsystem.update(bt.get_collisions());
-
-      #[cfg(debug_assertions)]
-      bt.draw(1.);
+      let actors_bounds = &actors.iter().map(|(k, a)| (*k, a.borrow().movable.bounds())).collect();
+      cdsystem.update(get_collisions(actors_bounds));
     }
 
     {
@@ -83,8 +52,8 @@ async fn main() {
       let _z = telemetry::ZoneGuard::new("collision detection and resoultion");
 
       for (ka, kb) in cdsystem.get_just_collided() {
-        let aa = actors.get(&ka).unwrap();
-        let ab = actors.get(&kb).unwrap();
+        let aa = &mut actors.get(&ka).unwrap().borrow_mut();
+        let ab = &mut actors.get(&kb).unwrap().borrow_mut();
 
         resolve_collision(aa, ab, delta_t);
       }
@@ -94,34 +63,27 @@ async fn main() {
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("update");
 
-      let mut actions: Vec<(usize, Action)> = vec![];
-
-      for (k, a) in actors.iter_mut() {
-        if let Some(action) = a.perform() {
-          actions.push((*k, action));
+      for (_k, a) in actors.iter() {
+        let mut a = a.borrow_mut();
+        if let Some(next_state) = a.decide(&actors) {
+          a.set_state(next_state);
         }
-
         a.update(delta_t);
-        let mut m = a.movable.borrow_mut();
+        let m = &mut a.movable;
 
-        if m.bounds().right() > screen_width() || m.bounds().left() < 0. {
-          m.vel.x = -m.vel.x;
+        if m.bounds().right() > screen_width() ||
+            m.bounds().left() < 0. ||
+            m.bounds().bottom() > screen_height() ||
+            m.bounds().top() < 0.
+        {
+          m.set_vel(Vec2::ZERO);
         }
-        if m.bounds().bottom() > screen_height() || m.bounds().top() < 0. {
-          m.vel.y = -m.vel.y;
-        }
-      }
-
-      for (src, a) in actions {
-        let src_actor = actors.get_mut(&src).unwrap();
-        a.apply(src_actor);
       }
     }
 
     for a in actors.values() {
-      let m = a.movable.borrow();
-      let r = m.bounds();
-      draw_rectangle(r.x, r.y, r.w, r.h, a.color);
+      let r = &a.borrow().movable.bounds();
+      draw_rectangle(r.x, r.y, r.w, r.h, a.borrow().color);
     }
 
     #[cfg(debug_assertions)]

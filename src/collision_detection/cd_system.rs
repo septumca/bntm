@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use macroquad::{prelude::*};
 
-use crate::{utils::rect_from_pos, components::movable::Movable};
+use crate::{components::movable::Movable};
 
 pub const BOUNCE_VALUE: f32 = 100.;
 
-pub type CDData = (usize, usize);
+type CDData = (usize, usize);
+type CDElem = (usize, Rect);
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum CollisionAxis {
@@ -15,29 +16,28 @@ pub enum CollisionAxis {
   Both,
 }
 
+pub fn get_collisions(elems: &Vec<CDElem>) -> HashSet<CDData> {
+  let mut collisions = HashSet::new();
+  for index_a in 0..elems.len() {
+    for index_b in (index_a+1)..elems.len() {
+      if elems[index_a].1.overlaps(&elems[index_b].1) {
+        collisions.insert((elems[index_a].0, elems[index_b].0));
+      }
+    }
+  }
+  collisions
+}
 
 pub fn get_collision_axis(
   ma: &Movable,
   mb: &Movable, delta_t: f32
 ) -> CollisionAxis {
-  let ra = rect_from_pos(
-    ma.pos + vec2(ma.next_vel_imp(delta_t).0.x, 0.),
-    (ma.bounds().w, ma.bounds().h)
-  );
-  let rb = rect_from_pos(
-    mb.pos + vec2(mb.next_vel_imp(delta_t).0.x, 0.),
-    (mb.bounds().w, mb.bounds().h)
-  );
+  let ra = ma.offset_bounds(vec2(ma.next_vel_imp(delta_t).0.x, 0.));
+  let rb = mb.offset_bounds(vec2(mb.next_vel_imp(delta_t).0.x, 0.));
   let x_overlaps = ra.overlaps(&rb);
 
-  let ra = rect_from_pos(
-    ma.pos + vec2(0., ma.next_vel_imp(delta_t).0.y),
-    (ma.bounds().w, ma.bounds().h)
-  );
-  let rb = rect_from_pos(
-    mb.pos + vec2(0., mb.next_vel_imp(delta_t).0.y),
-    (mb.bounds().w, mb.bounds().h)
-  );
+  let ra = ma.offset_bounds(vec2(0., ma.next_vel_imp(delta_t).0.y));
+  let rb = mb.offset_bounds(vec2(0., mb.next_vel_imp(delta_t).0.y));
   let y_overlaps = ra.overlaps(&rb);
 
   if x_overlaps && y_overlaps {

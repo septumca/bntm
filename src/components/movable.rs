@@ -1,16 +1,16 @@
 use macroquad::{prelude::*};
 
-use crate::utils::EPSILON;
+use crate::{utils::EPSILON, collision_detection::cd_system::{get_collision_axis, CollisionAxis, BOUNCE_VALUE}};
 
 #[derive(Debug)]
 pub struct Movable {
-  pub pos: Vec2,
-  pub vel: Vec2,
+  pos: Vec2,
+  vel: Vec2,
   pub imp: Vec2,
   pub speed: f32,
   pub friction: f32,
   pub weight: f32,
-  pub bounds: Rect,
+  bounds: Rect,
 }
 
 impl Movable {
@@ -21,7 +21,7 @@ impl Movable {
       pos,
       vel: Vec2::ZERO,
       imp: Vec2::ZERO,
-      friction: 0.9,
+      friction: 0.75,
       speed: 50.,
       weight: 80.,
       bounds: Rect::new(pos.x, pos.y, size.0, size.1)
@@ -43,7 +43,7 @@ impl Movable {
 
   pub fn with_speed(mut self, speed: f32) -> Self {
     self.speed = speed;
-    self.vel = self.vel.normalize() * self.speed;
+    self.vel = self.vel.normalize_or_zero() * self.speed;
     self
   }
 
@@ -78,6 +78,14 @@ impl Movable {
     self.bounds
   }
 
+  pub fn pos(&self) -> Vec2 {
+    self.pos
+  }
+
+  pub fn offset_bounds(&self, offset: Vec2) -> Rect {
+    self.bounds.offset(offset)
+  }
+
   pub fn next_vel_imp(&self, delta_t: f32) -> (Vec2, Vec2) {
     let new_imp = self.imp * self.friction;
     let impuls = if new_imp.length_squared() > EPSILON {
@@ -96,6 +104,29 @@ impl Movable {
   }
 }
 
+
+pub fn bounce_resolution(ma: &mut Movable, mb: &mut Movable, delta_t: f32) {
+  let (impa, impb) = match get_collision_axis(ma, mb, delta_t) {
+    CollisionAxis::X => {
+      (vec2(mb.vel.x, ma.vel.y), vec2(ma.vel.x, mb.vel.y))
+    },
+    CollisionAxis::Y => {
+      (vec2(ma.vel.x, mb.vel.y), vec2(mb.vel.x, ma.vel.y))
+    },
+    CollisionAxis::Both => {
+      (vec2(mb.vel.x, mb.vel.y), vec2(ma.vel.x, ma.vel.y))
+    },
+  };
+
+  let impa = impa / ma.weight * BOUNCE_VALUE;
+  let impb = impb / mb.weight * BOUNCE_VALUE;
+
+  ma.set_vel(Vec2::ZERO);
+  ma.add_impuls(impa);
+
+  mb.set_vel(Vec2::ZERO);
+  mb.add_impuls(impb);
+}
 
 #[cfg(test)]
 mod tests {
@@ -162,5 +193,43 @@ mod tests {
     assert_eq!(m.bounds.right(), pos.x + size.0 / 2.);
     assert_eq!(m.bounds.top(), pos.y - size.1 / 2.);
     assert_eq!(m.bounds.bottom(), pos.x + size.1 / 2.);
+  }
+
+  #[test]
+  fn update() {
+    let (pos, _vel, m) = create();
+    let mut m = m.with_speed(100.);
+
+    m.update(1.);
+
+    assert_eq!(m.pos.x, pos.x + 100.);
+
+    m.add_impuls(vec2(0., 100.));
+
+    m.update(1.);
+
+    assert_eq!(m.pos.x, pos.x + 200.);
+    assert_eq!(m.pos.y, pos.y + 100.);
+
+    m.update(1.);
+
+    assert_eq!(m.pos.y, pos.y + 100. + 100. * m.friction);
+  }
+
+  #[test]
+  fn update_with_impuls() {
+    let (pos, _vel, m) = create();
+    let mut m = m.with_speed(100.);
+    m.add_impuls(vec2(0., 100.));
+
+    m.update(1.);
+
+    assert_eq!(m.pos.x, pos.x + 100.);
+    assert_eq!(m.pos.y, pos.y + 100.);
+
+    m.update(1.);
+
+    assert_eq!(m.pos.x, pos.x + 200.);
+    assert_eq!(m.pos.y, pos.y + 100. + 100. * m.friction);
   }
 }
