@@ -28,6 +28,24 @@ pub fn get_collisions(elems: &Vec<CDElem>) -> HashSet<CDData> {
   collisions
 }
 
+pub fn line_line_collision(
+  x1: f32, y1: f32, x2: f32, y2: f32,
+  x3: f32, y3: f32, x4: f32, y4: f32
+) -> Option<Vec2> {
+  // calculate the direction of the lines
+  let ua = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) /
+    ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+  let ub = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) /
+    ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+
+  // if uA and uB are between 0-1, lines are colliding
+  if ua >= 0. && ua <= 1. && ub >= 0. && ub <= 1. {
+    Some(vec2(x1 + (ua * (x2-x1)), y1 + (ua * (y2-y1))))
+  } else {
+    None
+  }
+}
+
 pub fn get_collision_axis(
   ma: &Movable,
   mb: &Movable, delta_t: f32

@@ -14,7 +14,7 @@ mod components;
 use crate::components::movable::Movable;
 
 use utils::*;
-use collision_detection::cd_system::{CDSystem, get_collisions};
+use collision_detection::cd_system::{CDSystem, get_collisions, line_line_collision};
 
 
 fn window_conf() -> Conf {
@@ -29,13 +29,28 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-  let actors: HashMap<usize, RefCell<Actor>> = generate_player_and_enemies(5);
+  // let actors: HashMap<usize, RefCell<Actor>> = generate_player_and_enemies(5);
+  let actors: HashMap<usize, RefCell<Actor>> = HashMap::new();
   let mut cdsystem = CDSystem::new();
 
+
+  let la = (10., 10., 800., 800.);
+  let lb = (10., 700., 800., 50.);
 
   loop {
     let delta_t = get_frame_time();
     clear_background(BLACK);
+
+    let i = line_line_collision(
+      la.0, la.1, la.2, la.3,
+      lb.0, lb.1, lb.2, lb.3
+    );
+    draw_line(la.0, la.1, la.2, la.3, 2., GREEN);
+    draw_line(lb.0, lb.1, lb.2, lb.3, 2., BLUE);
+    if let Some(i) = i {
+      draw_circle(i.x, i.y, 5., RED);
+    }
+    draw_text(format!("{:?}", i).as_str(), 5., 20., 32., WHITE);
 
     if actors.is_empty() {
       next_frame().await;
@@ -45,11 +60,6 @@ async fn main() {
     {
       let actors_bounds = &actors.iter().map(|(k, a)| (*k, a.borrow().movable.bounds())).collect();
       cdsystem.update(get_collisions(actors_bounds));
-    }
-
-    {
-      #[cfg(debug_assertions)]
-      let _z = telemetry::ZoneGuard::new("collision detection and resoultion");
 
       for (ka, kb) in cdsystem.get_collided() {
         let aa = &mut actors.get(&ka).unwrap().borrow_mut();
