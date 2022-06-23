@@ -51,7 +51,7 @@ async fn main() {
       #[cfg(debug_assertions)]
       let _z = telemetry::ZoneGuard::new("collision detection and resoultion");
 
-      for (ka, kb) in cdsystem.get_just_collided() {
+      for (ka, kb) in cdsystem.get_collided() {
         let aa = &mut actors.get(&ka).unwrap().borrow_mut();
         let ab = &mut actors.get(&kb).unwrap().borrow_mut();
 

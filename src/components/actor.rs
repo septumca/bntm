@@ -5,7 +5,7 @@ use std::{collections::HashMap, cell::RefCell};
 use macroquad::prelude::*;
 use crate::{Movable, utils::EPSILON};
 
-use super::movable::bounce_resolution;
+use super::movable::{shove_resolution};
 
 pub const PLAYER_KEY: usize = 0;
 
@@ -88,7 +88,7 @@ impl Actor {
 }
 
 
-pub fn resolve_collision(aa: &mut Actor, ab: &mut Actor, delta_t: f32) {
+pub fn resolve_collision(aa: &mut Actor, ab: &mut Actor, _delta_t: f32) {
   match (&aa.kind, &ab.kind) {
     // (ActorKind::Enemy, ActorKind::Enemy)  => {
     //   //bounce
@@ -102,7 +102,7 @@ pub fn resolve_collision(aa: &mut Actor, ab: &mut Actor, delta_t: f32) {
     //   bounce_resolution(aa, ab, delta_t);
     // },
     _ => {
-      bounce_resolution(&mut aa.movable, &mut ab.movable, delta_t);
+      shove_resolution(&mut aa.movable, &mut ab.movable);
     }
   }
 }

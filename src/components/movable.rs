@@ -104,6 +104,11 @@ impl Movable {
   }
 }
 
+pub fn shove_resolution(ma: &mut Movable, mb: &mut Movable) {
+  ma.add_impuls((ma.pos - mb.pos) * BOUNCE_VALUE);
+  mb.add_impuls((mb.pos - ma.pos) * BOUNCE_VALUE);
+
+}
 
 pub fn bounce_resolution(ma: &mut Movable, mb: &mut Movable, delta_t: f32) {
   let (impa, impb) = match get_collision_axis(ma, mb, delta_t) {

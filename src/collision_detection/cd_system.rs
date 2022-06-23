@@ -4,7 +4,7 @@ use macroquad::{prelude::*};
 
 use crate::{components::movable::Movable};
 
-pub const BOUNCE_VALUE: f32 = 100.;
+pub const BOUNCE_VALUE: f32 = 4.;
 
 type CDData = (usize, usize);
 type CDElem = (usize, Rect);
@@ -70,8 +70,16 @@ impl CDSystem {
       self.act_step = collisions;
     }
 
+    pub fn get_collided(&self) -> HashSet<CDData> {
+      self.act_step.clone()
+    }
+
     pub fn get_just_collided(&self) -> HashSet<CDData> {
       &self.act_step - &self.last_step
+    }
+
+    pub fn just_collided(&self, value: CDData) -> bool {
+      !self.last_step.contains(&value)
     }
 }
 
