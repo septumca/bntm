@@ -4,7 +4,7 @@ use macroquad::{prelude::*};
 
 use crate::{components::movable::Movable};
 
-pub const BOUNCE_VALUE: f32 = 4.;
+pub const BOUNCE_VALUE: f32 = 2.;
 
 type CDData = (usize, usize);
 type CDElem = (usize, Rect);
@@ -38,8 +38,8 @@ pub fn line_line_collision(
   let ub = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) /
     ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
 
-  // if uA and uB are between 0-1, lines are colliding
-  if ua >= 0. && ua <= 1. && ub >= 0. && ub <= 1. {
+  // if uA and uB are between 0-1, lines segments are colliding, over 0 lines are colliding
+  if ua >= 0. && ub >= 0. {
     Some(vec2(x1 + (ua * (x2-x1)), y1 + (ua * (y2-y1))))
   } else {
     None

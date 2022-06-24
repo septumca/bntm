@@ -1,6 +1,6 @@
 use core::cell::RefCell;
 use crate::components::actor::Actor;
-use components::actor::{resolve_collision};
+use components::{actor::{resolve_collision}, corridor::{CorridorBuilder, build_corridors}};
 use macroquad::prelude::*;
 use std::{collections::HashMap};
 use macroquad::telemetry;
@@ -34,23 +34,31 @@ async fn main() {
   let mut cdsystem = CDSystem::new();
 
 
-  let la = (10., 10., 800., 800.);
-  let lb = (10., 700., 800., 50.);
+  // let la = (10., 10., 50., 10.);
+  // let lb = (60., 40., 60., 20.);
+  // let la = (10., 10., 40., 10.);
+  // let lb = (60., 40., 60., 20.);
+  // let i = line_line_collision(la.0, la.1, la.2, la.3, lb.0, lb.1, lb.2, lb.3);
+
+  let cb: Vec<CorridorBuilder> = vec![
+    CorridorBuilder::new(vec2(50., 300.), vec2(400., 200.), 100., 200.),
+    CorridorBuilder::new(vec2(400., 200.), vec2(800., 500.), 80., 150.),
+  ];
+
+  let c = build_corridors(cb);
 
   loop {
     let delta_t = get_frame_time();
     clear_background(BLACK);
 
-    let i = line_line_collision(
-      la.0, la.1, la.2, la.3,
-      lb.0, lb.1, lb.2, lb.3
-    );
-    draw_line(la.0, la.1, la.2, la.3, 2., GREEN);
-    draw_line(lb.0, lb.1, lb.2, lb.3, 2., BLUE);
-    if let Some(i) = i {
-      draw_circle(i.x, i.y, 5., RED);
-    }
-    draw_text(format!("{:?}", i).as_str(), 5., 20., 32., WHITE);
+    c.iter().for_each(|corr| {
+      corr.draw()
+    });
+    // draw_line(la.0, la.1, la.2, la.3, 4., GREEN);
+    // draw_line(lb.0, lb.1, lb.2, lb.3, 4., BLUE);
+    // if let Some(ip) = i {
+    //   draw_circle(ip.x, ip.y, 5., RED);
+    // }
 
     if actors.is_empty() {
       next_frame().await;
